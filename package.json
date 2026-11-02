@@ -1,0 +1,12 @@
+{
+  "name": "cargolens-ai",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Human-reviewed freight documentation assistant",
+  "workspaces": ["client", "server"],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present --parallel",
+    "build": "npm run build --workspace client",
+    "start": "npm run start --workspace server"
+  }
+}
