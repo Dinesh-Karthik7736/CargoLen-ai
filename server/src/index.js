@@ -4,13 +4,14 @@ import { createApp } from "./app.js";
 import { connectDatabase, disconnectDatabase } from "./db.js";
 
 const port = Number(process.env.PORT ?? 4000);
+const host = process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1";
 const app = createApp();
 const server = createServer(app);
 
 async function start() {
   await connectDatabase();
-  server.listen(port, () => {
-    console.log(`CargoLens API listening on port ${port}`);
+  server.listen(port, host, () => {
+    console.log(`CargoLens API listening on ${host}:${port}`);
   });
 }
 
@@ -25,7 +26,7 @@ async function shutdown(signal) {
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 
-start().catch((error) => {
-  console.error("CargoLens API failed to start:", error.message);
+start().catch(() => {
+  console.error("CargoLens API failed to start. Check local configuration and database connectivity.");
   process.exit(1);
 });
