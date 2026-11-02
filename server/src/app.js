@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
+import { isDatabaseReady } from "./db.js";
 
 export function createApp() {
   const app = express();
@@ -15,6 +16,14 @@ export function createApp() {
 
   app.get("/api/health", (_request, response) => {
     response.json({ status: "ok", service: "cargolens-api" });
+  });
+
+  app.get("/api/ready", (_request, response) => {
+    const ready = isDatabaseReady();
+    response.status(ready ? 200 : 503).json({
+      status: ready ? "ready" : "not_ready",
+      database: ready ? "connected" : "disconnected"
+    });
   });
 
   return app;
