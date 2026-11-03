@@ -91,7 +91,69 @@ body { color: var(--ink); background: var(--canvas); font-family: 'DM Sans', 'Se
 .document-trust.trusted .trust-score { border-color: #f1c1ae; }
 .document-trust.trusted .trust-score b, .document-trust.trusted .trust-copy strong { color: #b84d2d; }
 .auth-shell, .startup-state { background: #f0efed; }
-.auth-card { border-color: #fff; border-radius: 20px; box-shadow: var(--shadow); }
+.auth-card { width: min(460px, 100%); border-color: #fff; border-radius: 22px; padding: 38px 38px 30px; box-shadow: var(--shadow); }
+.auth-brand { color: #20201d; font-family: 'Manrope', 'DM Sans', sans-serif; font-size: 21px; }
+.auth-brand > span:nth-child(2) > span { color: #777670; }
+.auth-brand-mark { width: 38px; height: 38px; border-radius: 12px; background: #ef613b; }
+.auth-brand small { color: #9a9892; font-family: 'DM Sans', sans-serif; letter-spacing: 1px; }
+.auth-heading { margin: 38px 0 25px; }
+.auth-lock { width: 36px; height: 36px; border-radius: 12px; background: #f8e7df; color: #bf5633; }
+.auth-heading h1 { color: #22221f; font: 700 27px 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.7px; }
+.auth-heading p { color: #777670; font-size: 13px; }
+.auth-form { gap: 10px; }
+.auth-form label { color: #44433e; font-size: 12px; }
+.auth-form input { height: 48px; padding: 0 14px; border: 1px solid #e7e5e1; border-radius: 12px; background: #fff; color: #292925; font: 14px 'DM Sans', sans-serif; }
+.auth-form input:focus { border-color: #ed9477; outline: 3px solid #ef613b18; }
+.auth-password-label button, .auth-back { color: #b95132; font-size: 11px; }
+.auth-submit { height: 48px; margin-top: 13px; border: 1px solid #22221f; border-radius: 999px; background: #22221f; font: 600 13px 'DM Sans', sans-serif; }
+.auth-submit:hover { background: #ef613b; border-color: #ef613b; }
+.auth-footer { border-color: #eeece9; color: #777670; font-size: 10px; }
+.auth-region { color: #777670; }
+.auth-message { border-radius: 11px; font-size: 12px; }
+.access-card { border-color: #fff; border-radius: 18px; box-shadow: var(--shadow); }
+.access-card h1 { color: #22221f; font-family: 'Manrope', 'DM Sans', sans-serif; }
+.workspace-status .live-dot { width: 8px; height: 8px; background: #d17b34; }
+.workspace-status.online .live-dot { background: #3c9362; }
+.workspace-status.offline { color: #87521d; background: #fff6e9; border-color: #f3dfc3; }
+.fields-column { padding: 22px 24px 26px; }
+.field-grid { gap: 12px; }
+.field { min-height: 96px; padding: 15px 16px; gap: 9px; border-radius: 12px; }
+.field > span:first-child { font-size: 13px; color: #676660; }
+.field input { min-height: 27px; font-size: 16px !important; color: #22221f; }
+.field > small { font-size: 10px; }
+.line-card { padding: 15px; border-radius: 13px; }
+.line-grid { gap: 10px; }
+.line-grid .field { min-height: 86px; }
+.total-card { min-height: 76px; border-radius: 12px; }
+.compare-editor input { min-height: 44px; }
+
+@media (min-width: 901px) and (max-width: 1100px) {
+  .sidebar { position: sticky; width: auto; height: auto; inset: auto; padding: 8px 16px; border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; align-items: center; gap: 14px; }
+  .brand { flex: 0 0 auto; }
+  .workspace-label, .side-bottom, .secure-note { display: none; }
+  .sidebar nav { display: flex; gap: 5px; overflow-x: auto; }
+  .nav-link { flex: 0 0 auto; padding: 0 15px; }
+  .main-area { margin-left: 0; padding: 10px 22px 28px; }
+  .work-card { grid-template-columns: 250px minmax(0, 1fr); }
+  .review-body { grid-template-columns: minmax(0, 1fr); }
+  .fields-column { max-height: none; overflow: visible; }
+}
+@media (min-width: 651px) and (max-width: 900px) {
+  .work-card { grid-template-columns: minmax(0, 1fr); }
+  .list-panel { max-height: 300px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .shipment-list { overflow-y: auto; }
+  .fields-column { padding: 20px; }
+  .field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .review-footer { gap: 12px; flex-wrap: wrap; }
+}
+@media (max-width: 650px) {
+  .auth-card { padding: 28px 23px 23px; border-radius: 18px; }
+  .auth-heading { margin: 30px 0 22px; }
+  .fields-column { padding: 16px 14px 20px; }
+  .field { min-height: 82px; padding: 12px; }
+  .field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .review-footer { position: sticky; bottom: 0; padding: 10px; }
+}
 
 @media (max-width: 900px) {
   .main-area { margin-left: 0; padding: 10px 18px 24px; }
