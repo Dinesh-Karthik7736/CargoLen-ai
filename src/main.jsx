@@ -7,6 +7,7 @@ import { isSupabaseConfigured, supabase, supabaseConfigError } from './lib/supab
 import { extractionErrorMessage } from './lib/edge-function-errors.js';
 import AuthScreen from './auth/AuthScreen.jsx';
 import './styles.css';
+import './theme.css';
 
 const seed = [
   { id:'SHP-24811', supplier:'Company B (China)', port:'Nhava Sheva', date:'18 Oct 2026', status:'Needs review', docs:['Invoice','Packing list','Bill of lading'], items:1, confidence:82, invoice:'INV-CB-8841', currency:'USD', incoterm:'FOB Shanghai', packages:'120 cartons', gross:'3,120 kg', net:'2,940 kg', container:'MSCU 482091-3', total:'16,320.00', lineSum:'16,320.00', invoiceGross:'3,120', packingGross:'3,165', blGross:'3,120', invoicePackages:'120', packingPackages:'120', blPackages:'120', product:'LED panel light 40W', qty:'2,400', unit:'6.80', hsn:'9405.42', flag:'Gross weight differs by 45 kg between invoice and packing list.' },
