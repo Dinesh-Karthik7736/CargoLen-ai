@@ -13,49 +13,55 @@ const headersFor = (origin: string) => {
   };
 };
 
-const fieldSchema = (kind: 'string' | 'number') => ({
-  type: 'object',
-  properties: {
-    value: { type: [kind, 'null'] },
-    confidence: { type: 'number', minimum: 0, maximum: 1 },
-    evidence: { type: ['string', 'null'] },
-  },
-  required: ['value', 'confidence', 'evidence'],
-});
-
 const schema = {
   type: 'object',
   properties: {
-    document_type: { type: 'string', enum: ['invoice', 'packing_list', 'bill_of_lading'] },
-    fields: {
-      type: 'object',
-      properties: {
-        supplier_name: fieldSchema('string'), supplier_country: fieldSchema('string'), buyer_name: fieldSchema('string'),
-        invoice_number: fieldSchema('string'), invoice_date: fieldSchema('string'), currency: fieldSchema('string'),
-        incoterm: fieldSchema('string'), invoice_total: fieldSchema('number'), package_count: fieldSchema('number'),
-        package_type: fieldSchema('string'), gross_weight_kg: fieldSchema('number'), net_weight_kg: fieldSchema('number'),
-        container_numbers: fieldSchema('string'),
-      },
-      required: ['supplier_name','supplier_country','buyer_name','invoice_number','invoice_date','currency','incoterm','invoice_total','package_count','package_type','gross_weight_kg','net_weight_kg','container_numbers'],
-    },
+    supplier_name: { type: 'string', description: 'Supplier or shipper name exactly as printed.' },
+    supplier_country: { type: 'string', description: 'Supplier country, only when shown.' },
+    buyer_name: { type: 'string', description: 'Buyer or consignee name exactly as printed.' },
+    invoice_number: { type: 'string', description: 'Invoice number, when shown.' },
+    invoice_date: { type: 'string', description: 'Invoice date in ISO YYYY-MM-DD format, when shown.' },
+    currency: { type: 'string', description: 'Three-letter currency code, when shown.' },
+    incoterm: { type: 'string', description: 'Incoterm exactly as shown, when shown.' },
+    invoice_total: { type: 'number', description: 'Final invoice total as a number, when shown.' },
+    package_count: { type: 'number', description: 'Number of packages, when shown.' },
+    package_type: { type: 'string', description: 'Package type, such as cartons or pallets.' },
+    gross_weight_kg: { type: 'number', description: 'Gross weight in kilograms, when shown.' },
+    net_weight_kg: { type: 'number', description: 'Net weight in kilograms, when shown.' },
+    container_numbers: { type: 'string', description: 'Container identifiers, separated by commas.' },
     line_items: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
-          description: fieldSchema('string'), hsn_code: fieldSchema('string'), quantity: fieldSchema('number'),
-          unit_price: fieldSchema('number'), line_total: fieldSchema('number'),
+          description: { type: 'string', description: 'Goods description exactly as shown.' },
+          hsn_code: { type: 'string', description: 'HSN code only if printed; never infer or classify.' },
+          quantity: { type: 'number', description: 'Quantity as a number.' },
+          unit_price: { type: 'number', description: 'Unit price as a number.' },
+          line_total: { type: 'number', description: 'Line amount as a number.' },
         },
-        required: ['description','hsn_code','quantity','unit_price','line_total'],
       },
     },
   },
-  required: ['document_type','fields','line_items'],
 };
 
 const confidenceNumber = (value: unknown) => {
   const number = Number(value);
   return Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : 0;
+};
+
+const providerError = async (response: Response, action: string) => {
+  let detail = '';
+  try {
+    const body = await response.json();
+    detail = String(body.detail || body.message || body.error || '').slice(0, 180);
+  } catch { /* keep the user-facing message generic */ }
+  const status = response.status;
+  if (status === 401 || status === 403) return `LlamaCloud rejected the API key or project access (HTTP ${status}). Check the Supabase Function secrets.`;
+  if (status === 402) return 'LlamaCloud free-tier credits are exhausted. Check the LlamaCloud usage page and retry after the monthly reset.';
+  if (status === 429) return 'LlamaCloud rate limit reached. Wait briefly, then retry extraction.';
+  if ([502, 503, 504].includes(status)) return `LlamaCloud is temporarily unavailable (HTTP ${status}). Retry extraction in a moment.`;
+  return `LlamaCloud could not ${action} (HTTP ${status})${detail ? `: ${detail}` : '.'}`;
 };
 
 Deno.serve(async (request) => {
@@ -66,9 +72,10 @@ Deno.serve(async (request) => {
   const url = Deno.env.get('SUPABASE_URL');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const geminiKey = Deno.env.get('GEMINI_API_KEY');
-  if (!url || !anonKey || !serviceKey || !geminiKey) {
-    return new Response(JSON.stringify({ error: 'Extraction service is not configured. Add GEMINI_API_KEY to Supabase Function secrets.' }), { status: 503, headers: cors });
+  const llamaKey = Deno.env.get('LLAMA_CLOUD_API_KEY');
+  const llamaProject = Deno.env.get('LLAMA_CLOUD_PROJECT_ID');
+  if (!url || !anonKey || !serviceKey || !llamaKey) {
+    return new Response(JSON.stringify({ error: 'Extraction service is not configured. Add LLAMA_CLOUD_API_KEY to Supabase Function secrets.' }), { status: 503, headers: cors });
   }
 
   const authorization = request.headers.get('authorization');
@@ -107,63 +114,70 @@ Deno.serve(async (request) => {
     if (fileError || !file) throw new Error('The private source file could not be opened.');
     const bytes = new Uint8Array(await file.arrayBuffer());
     if (bytes.byteLength === 0 || bytes.byteLength > 20 * 1024 * 1024) throw new Error('The source file is empty or exceeds the 20 MB limit.');
-    let binary = '';
-    for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
-    const base64 = btoa(binary);
-    const documentContent = document.mime_type === 'application/pdf'
-      ? { type: 'document', data: base64, mime_type: document.mime_type }
-      : { type: 'image', data: base64, mime_type: document.mime_type };
-    const prompt = `Read this import shipment ${document.document_type.replaceAll('_',' ')}. It may be skewed or multilingual. Extract only values visibly present in this document. Do not infer, classify, calculate duty, or invent an HSN code. If HSN is absent, return null with confidence 0. For each value return a confidence from 0 to 1 and a short exact source quote; if uncertain or absent use null and an empty quote. For quantities, prices, weights and totals, return numbers only and preserve the printed unit/currency separately. Return the document_type as ${document.document_type}.`;
-    const requestBody = JSON.stringify({
-      model: Deno.env.get('GEMINI_MODEL') || 'gemini-3.8-flash',
-      input: [documentContent, { type: 'text', text: prompt }],
-      response_format: { type: 'text', mime_type: 'application/json', schema },
+    const apiRoot = 'https://api.cloud.llamaindex.ai';
+    const projectParam = llamaProject ? `?project_id=${encodeURIComponent(llamaProject)}` : '';
+    const headers = { Authorization: `Bearer ${llamaKey}` };
+    const uploadBody = new FormData();
+    uploadBody.append('purpose', 'extract');
+    uploadBody.append('file', new Blob([bytes], { type: document.mime_type }), document.object_path.split('/').pop() || `${document.document_type}.pdf`);
+    const uploadResponse = await fetch(`${apiRoot}/api/v1/beta/files`, { method: 'POST', headers, body: uploadBody });
+    if (!uploadResponse.ok) throw new Error(await providerError(uploadResponse, 'upload'));
+    const uploaded = await uploadResponse.json();
+    if (typeof uploaded.id !== 'string') throw new Error('LlamaCloud did not return an uploaded file ID.');
+
+    const createResponse = await fetch(`${apiRoot}/api/v2/extract${projectParam}`, {
+      method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_input: uploaded.id, configuration: {
+        tier: Deno.env.get('LLAMA_EXTRACT_TIER') || 'cost_effective', version: 'latest', extraction_target: 'per_doc',
+        data_schema: schema, cite_sources: true, confidence_scores: true,
+        system_prompt: `Read this shipment ${document.document_type.replaceAll('_', ' ')}. The scan may be skewed or bilingual. Extract only printed values; do not infer missing data, classify HSN, or calculate duty. Return absent fields as null and absent line_items as an empty array. Normalize weights to kilograms and dates to YYYY-MM-DD.`,
+      } }),
     });
-    let response: Response | null = null;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
-        method: 'POST',
-        headers: { 'x-goog-api-key': geminiKey, 'Content-Type': 'application/json' },
-        body: requestBody,
-      });
-      const transient = [408, 429, 500, 502, 503, 504].includes(response.status);
-      if (!transient || attempt === 2) break;
-      const delayMs = 800 * (2 ** attempt) + Math.floor(Math.random() * 300);
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    if (!createResponse.ok) throw new Error(await providerError(createResponse, 'start extraction'));
+    const created = await createResponse.json();
+    if (typeof created.id !== 'string') throw new Error('LlamaCloud did not return an extraction job ID.');
+    let completed = created;
+    const deadline = Date.now() + 105_000;
+    while (!['COMPLETED', 'FAILED', 'CANCELLED'].includes(completed.status) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const pollResponse = await fetch(`${apiRoot}/api/v2/extract/${encodeURIComponent(created.id)}${projectParam}`, { headers });
+      if (!pollResponse.ok) throw new Error(await providerError(pollResponse, 'check extraction status'));
+      completed = await pollResponse.json();
     }
-    if (!response) throw new Error('Gemini returned no HTTP response. Retry extraction in a moment.');
-    if (!response.ok) {
-      const status = response.status;
-      if (status === 503) throw new Error('Gemini is temporarily overloaded (HTTP 503). Wait briefly, then retry extraction.');
-      if (status === 429) throw new Error('Gemini rate limit reached (HTTP 429). Wait for the limit to reset, then retry.');
-      if (status === 401 || status === 403) throw new Error(`Gemini rejected the API key or project access (HTTP ${status}). Check the key and AI Studio project.`);
-      throw new Error(`Gemini rejected the extraction request (HTTP ${status}). Check the function logs for details.`);
-    }
-    const modelResponse = await response.json();
-    const text = modelResponse.output_text || modelResponse.output?.find((part: { type?: string }) => part.type === 'text')?.text;
-    if (typeof text !== 'string') throw new Error('AI provider returned no structured document data.');
-    const result = JSON.parse(text);
-    if (result.document_type !== document.document_type || !result.fields || !Array.isArray(result.line_items)) throw new Error('AI result failed document schema validation.');
+    if (!['COMPLETED', 'FAILED', 'CANCELLED'].includes(completed.status)) throw new Error('LlamaCloud extraction is taking longer than expected. Retry in a moment.');
+    if (completed.status !== 'COMPLETED') throw new Error(`LlamaCloud could not process this document${completed.error_message ? `: ${String(completed.error_message).slice(0, 180)}` : '.'}`);
+    const resultResponse = await fetch(`${apiRoot}/api/v2/extract/${encodeURIComponent(created.id)}${projectParam ? `${projectParam}&` : '?'}expand=extract_metadata`, { headers });
+    if (!resultResponse.ok) throw new Error(await providerError(resultResponse, 'retrieve extraction result'));
+    const job = await resultResponse.json();
+    const result = job.extract_result;
+    if (!result || typeof result !== 'object' || Array.isArray(result) || (result.line_items != null && !Array.isArray(result.line_items))) throw new Error('LlamaCloud result failed shipment schema validation.');
+    if (!Array.isArray(result.line_items)) result.line_items = [];
+    const metadata = job.extract_metadata?.field_metadata?.document_metadata || {};
+    const fields = Object.fromEntries(Object.keys(schema.properties).filter((key) => key !== 'line_items').map((key) => [key, result[key]]));
 
     const plainFields: Record<string, unknown> = {};
     const confidence: Record<string, number> = {};
     const evidence: Record<string, string | null> = {};
     const reviewRequired: string[] = [];
-    for (const [key, field] of Object.entries(result.fields as Record<string, { value?: unknown; confidence?: unknown; evidence?: unknown }>)) {
-      const score = confidenceNumber(field?.confidence);
-      plainFields[key] = field?.value ?? null;
+    for (const [key, value] of Object.entries(fields)) {
+      const fieldMetadata = metadata[key] || {};
+      const score = confidenceNumber(fieldMetadata.confidence);
+      plainFields[key] = value ?? null;
       confidence[key] = Math.round(score * 100);
-      evidence[key] = typeof field?.evidence === 'string' ? field.evidence.slice(0, 240) : null;
+      const citation = Array.isArray(fieldMetadata.citation) ? fieldMetadata.citation[0] : null;
+      evidence[key] = typeof citation?.matching_text === 'string' ? citation.matching_text.slice(0, 240) : null;
       if (score < 0.82) reviewRequired.push(`${document.document_type}.${key}`);
     }
-    const lineItems = result.line_items.slice(0, 200).map((item: Record<string, { value?: unknown; confidence?: unknown; evidence?: unknown }>, index: number) => {
+    const lineItems = result.line_items.slice(0, 200).map((item: Record<string, unknown>, index: number) => {
       const values: Record<string, unknown> = {};
       const itemConfidence: Record<string, number> = {};
       const itemEvidence: Record<string, string | null> = {};
+      const itemMetadata = metadata.line_items?.[index] || {};
       for (const key of ['description','hsn_code','quantity','unit_price','line_total']) {
-        const field = item[key]; const score = confidenceNumber(field?.confidence);
-        values[key] = field?.value ?? null; itemConfidence[key] = Math.round(score * 100);
-        itemEvidence[key] = typeof field?.evidence === 'string' ? field.evidence.slice(0, 240) : null;
+        const score = confidenceNumber(itemMetadata[key]?.confidence);
+        values[key] = item[key] ?? null; itemConfidence[key] = Math.round(score * 100);
+        const citation = Array.isArray(itemMetadata[key]?.citation) ? itemMetadata[key].citation[0] : null;
+        itemEvidence[key] = typeof citation?.matching_text === 'string' ? citation.matching_text.slice(0, 240) : null;
         if (score < 0.82) reviewRequired.push(`${document.document_type}.items.${index + 1}.${key}`);
       }
       return { ...values, confidence: itemConfidence, evidence: itemEvidence, line_number: index + 1 };
@@ -171,7 +185,7 @@ Deno.serve(async (request) => {
 
     const { error: updateDocError } = await admin.from('shipment_documents').update({
       processing_status: 'complete', extracted_data: { ...plainFields, line_items: lineItems, _evidence: evidence },
-      field_confidence: confidence, extraction_provider: 'Google Gemini API', extraction_model: Deno.env.get('GEMINI_MODEL') || 'gemini-3.8-flash',
+      field_confidence: confidence, extraction_provider: 'LlamaCloud Extract', extraction_model: `LlamaExtract ${Deno.env.get('LLAMA_EXTRACT_TIER') || 'cost_effective'}`,
       extracted_at: new Date().toISOString(), failure_reason: null,
     }).eq('id', documentId);
     if (updateDocError) throw new Error('Could not save the validated extraction result.');
@@ -212,3 +226,4 @@ Deno.serve(async (request) => {
     return new Response(JSON.stringify({ error: message }), { status: 422, headers: cors });
   }
 });
+
