@@ -46,11 +46,16 @@ export function canExportShipment(shipment) {
 
 export function filingCsv(shipment) {
   const headers = ['Shipment ID', 'Supplier', 'Invoice number', 'Currency', 'Incoterm', 'Item', 'HSN', 'Quantity', 'Unit price', 'Packages', 'Gross weight kg', 'Net weight kg', 'Container'];
-  const values = [shipment.id, shipment.supplier, shipment.invoice, shipment.currency, shipment.incoterm, shipment.product, shipment.hsn, shipment.qty, shipment.unit, shipment.packages, shipment.gross, shipment.net, shipment.container];
+  const items = shipment.lineItems?.length ? shipment.lineItems : [{
+    description: shipment.product, hsn_code: shipment.hsn, quantity: shipment.qty, unit_price: shipment.unit,
+  }];
   const cell = (value) => {
     let text = String(value ?? '');
     if (/^[\t\r\n ]*[=+\-@]/.test(text)) text = `'${text}`;
     return `"${text.replaceAll('"', '""')}"`;
   };
-  return [headers, values].map((row) => row.map(cell).join(',')).join('\r\n');
+  const rows = items.map((item) => [shipment.id, shipment.supplier, shipment.invoice, shipment.currency, shipment.incoterm,
+    item.description, item.hsn_code, item.quantity, item.unit_price, shipment.packages, shipment.gross, shipment.net, shipment.container]);
+  return [headers, ...rows].map((row) => row.map(cell).join(',')).join('\r\n');
 }
+

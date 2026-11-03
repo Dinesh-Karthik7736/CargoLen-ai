@@ -50,3 +50,14 @@ test('numeric formatting differences do not create false reconciliation errors',
   assert.equal(reconcileShipment({ ...complete, total: '7,650.00', lineSum: '7650' })[0].ok, true);
   assert.equal(reconcileShipment({ ...complete, invoicePackages: 24, packingPackages: '24', blPackages: 24 })[2].ok, true);
 });
+
+test('filing CSV includes each shipment line item', () => {
+  const csv = filingCsv({ ...complete, lineItems: [
+    { description: 'Valve body', hsn_code: '8481.80', quantity: 2, unit_price: 10 },
+    { description: 'Seal kit', hsn_code: '4016.93', quantity: 4, unit_price: 3 },
+  ] });
+  assert.equal(csv.split('\r\n').length, 3);
+  assert.match(csv, /"Valve body"/);
+  assert.match(csv, /"Seal kit"/);
+});
+
