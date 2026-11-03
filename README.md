@@ -20,6 +20,14 @@ npm run dev
 
 With no `.env.local`, the app uses clearly labeled synthetic demo data. `npm run build` builds a split, minified production bundle; `npm test` runs the reconciliation checks.
 
+### Synthetic extraction samples
+
+- `public/samples/SHP-24811-*` contains clean, text-based invoice, packing-list, and bill-of-lading PDFs. The packing list intentionally reports 3,165 kg while the invoice and bill of lading report 3,120 kg.
+- `public/samples/SHP-24812-*-scan.pdf` contains image-only, lightly skewed, faded, noisy scans for OCR/vision testing. The documents are synthetic and the three weights/packages agree.
+- `tests/fixtures/document-extraction-golden.json` is the expected field reference and reconciliation result. Compare each extracted document with this reference to assess field accuracy and mismatch detection. Confidence scores are model estimates, not measured accuracy.
+
+The sample preview is available in demo mode on shipments SHP-24811 and SHP-24812. For AI testing in the connected workspace, create a shipment and upload the corresponding PDFs from `public/samples`.
+
 ## Supabase connected workspace
 
 1. Create a Supabase project in the **Mumbai `ap-south-1` region**. Region selection controls the primary data location; it does not by itself establish legal compliance.
