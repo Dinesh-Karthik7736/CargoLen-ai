@@ -71,12 +71,61 @@ Supabase Free is for exploration, has 1 GB storage, can pause inactive projects 
 - Evaluate per-field and per-supplier accuracy; keep low-confidence or failed-check values blocked until human confirmation.
 - Run security, accessibility, performance, backup/restore and production smoke checks on the selected paid/approved environment.
 
-## Verification
+## Engineering checklist and verification
+
+### Automated checks
+
+Run these locally before a change is considered ready:
 
 ```sh
-npm run build
 npm test
+npm run build
+npm audit --omit=dev
 ```
 
-The included tests cover invoice totals, required documents, weight/package mismatches, approval-gated export and CSV escaping. They do not replace a Supabase integration test, AI golden-set evaluation, security review or production smoke test.
+`npm test` uses Node's built-in test runner. It covers the reconciliation rules, missing source data, approval blockers, low-confidence confirmation, document review state, export gating, CSV formula-injection protection, extraction error handling, and the synthetic sample fixtures. `npm run build` checks the production Vite bundle and minifies assets. The golden fixture describes expected extraction values; it is not itself evidence that the live AI model reached a given accuracy.
+
+### Performance and infrastructure decisions
+
+| Area | Current implementation / verification |
+| --- | --- |
+| API response caching | Shipment, approval, profile, document and audit data stay uncached in the browser/CDN. They are private and change during review. |
+| Expensive query caching | No expensive dashboard aggregation currently exists; avoid adding a cache until a measured query needs it and an invalidation rule is defined. |
+| CDN / server-side caching | Vercel serves static deployment assets. Hashed `/assets/*` files are immutable for one year; synthetic `/samples/*` PDFs cache for one day; `index.html` is never stored. Verify response headers on the deployed URL. Vercel owns network distribution; the app does not implement a custom CDN. |
+| Compression | The Vite build reports gzip sizes. Vercel's delivery network handles response compression when supported by the client. Source shipment documents remain byte-for-byte intact for review evidence. |
+| Load balancer | Vercel's hosting platform handles request distribution. No app-managed load balancer is configured or load-test result claimed. |
+| Database indexes | Migrations index shipment status/date, supplier, owner/status/date, line items, documents, audit history and approval history. `shipment_no` is uniquely constrained for exact approved-shipment lookup. |
+| N+1 queries | Manager list profile lookup batches user IDs with one `in(...)` request per page. The exact approved-shipment lookup fetches one owner's profile after the single shipment result. |
+| Pagination | Connected workspace loads shipments in 50-row pages with a Load more action. Activity data is capped to the latest 250 entries and is not yet paginated. |
+| Debounced search | Shipment search waits 220 ms after typing; exact approved-record lookup only runs for a shipment-ID-shaped query. |
+| Code splitting / lazy loading | React, Supabase, icons and the sign-in screen are separate production chunks; the sign-in screen is loaded on demand. |
+| Image optimization | Uploaded invoices and scans are preserved as originals. The included synthetic scan PDFs are already small (about 70–78 KB); no destructive re-encoding is applied to customer evidence. |
+| Loading feedback | Session, account, workspace, extraction, search and load-more states provide progress feedback. Startup uses a branded loading state rather than shipment-row skeleton cards. |
+| React rendering | Derived shipment lists and document previews use memoization where appropriate. Use React Profiler with a representative workspace before further optimization. |
+| Dependencies | `npm ls --depth=0` verifies the declared dependency tree. Build-time tree shaking removes unused imported code; run the audit command above when npm advisory service is reachable. |
+| Connection pooling | The browser uses Supabase's HTTPS/PostgREST API; it does not open direct Postgres connections. Supabase manages its database-side connections. |
+| Non-critical scripts | No analytics or external marketing scripts are loaded. |
+
+### Test status for this checkout (3 Nov 2026)
+
+- **Passed:** `npm test` — 20 tests, 0 failures.
+- **Passed:** `npm run build` — Vite production build and minification. The sign-in chunk is 4.36 kB (1.59 kB gzip); application JavaScript is split into React, Supabase, icons and app chunks. Build output reports gzip sizes.
+- **Passed:** `vercel.json` parses as valid JSON.
+- **Not completed:** `npm audit --omit=dev` — npm's advisory endpoint was unreachable in this environment. This is not a clean vulnerability report; retry from a network that can access `registry.npmjs.org`.
+- **Not completed:** local browser/E2E and Lighthouse run — the dev server could not bind to `127.0.0.1:5173` (`EACCES`), and Lighthouse/Playwright are not installed in this project. Run a Lighthouse desktop audit on the deployed synthetic-data demo or locally where the dev server can bind. Record Performance, Accessibility, Best Practices and SEO scores with the tested deployment URL and date.
+- **Requires project access:** Supabase integration/RLS/storage/manager-approval smoke tests require the configured Supabase project and separate executive and manager accounts. No production or customer data was used during this run.
+- **Requires provider access and labels:** AI golden-set evaluation must run the included clean and noisy samples through the configured extraction provider, compare extracted values with `tests/fixtures/document-extraction-golden.json`, and calculate per-field accuracy. The 95% target requires 200 labeled historical shipments; no model accuracy claim is made from the current unit tests.
+
+### Pre-release test plan
+
+1. **Unit:** `npm test`; add regression cases for every fixed defect.
+2. **Build and dependency health:** `npm run build`, `npm audit --omit=dev`, and `npm ls --depth=0`.
+3. **AI extraction:** run both sample sets, compare each field against the golden JSON, check confidence/evidence, and verify the intentional 45 kg mismatch blocks submission. Repeat for skewed and bilingual labeled pages.
+4. **Executive workflow:** sign in, create shipment, upload/replace/remove a document, extract or mark manual entry, review every source, correct fields, resolve checks, submit, then confirm it appears in the manager queue.
+5. **Manager workflow:** verify executive name/code, approve, return with a reason, reject with a reason, search an approved shipment ID, and confirm approved/rejected/returned data persists after reload.
+6. **Security:** verify executive ownership and manager permissions through Supabase RLS using two separate accounts; test unauthenticated access, file-type/size rejection, signed URL expiry, role escalation denial, CORS, and audit-event integrity. Do this only in a disposable test project.
+7. **Performance/accessibility:** run Lighthouse desktop and tablet viewports, keyboard-only review, focus/contrast/label checks, large paginated list checks, and React Profiler with realistic synthetic volumes.
+8. **Deployment/recovery:** confirm HTTPS/security/cache headers and intended hosting/data regions, exercise backup restore and production smoke checks on the approved environment. Supabase Free does not provide the production backup/availability guarantees needed for real client records.
+
+The checks above are a take-home verification baseline, not a production security certification. Private customer data, importer contact details, or confidential pricing must not be entered into the demo. The app has no direct customs-portal integration, duty calculation, or importer tracking portal.
 
