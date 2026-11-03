@@ -46,10 +46,19 @@ export function hasRequiredDocuments(shipment) {
   return REQUIRED_DOCUMENTS.every((document) => shipment.docs.includes(document));
 }
 
+export function unreviewedDocuments(shipment) {
+  if (!Array.isArray(shipment.documents)) return [];
+  const types = { Invoice: 'invoice', 'Packing list': 'packing_list', 'Bill of lading': 'bill_of_lading' };
+  return REQUIRED_DOCUMENTS.filter((label) => {
+    const document = shipment.documents.find((item) => item.document_type === types[label]);
+    return document && !['complete', 'manual_entry'].includes(document.processing_status);
+  });
+}
+
 export function canSubmitForApproval(shipment) {
   const confirmed = new Set(shipment.confirmedFields || []);
   const needsReview = (shipment.reviewRequired || []).some((field) => !confirmed.has(field));
-  return hasRequiredDocuments(shipment) && hasCompleteLineItems(shipment)
+  return hasRequiredDocuments(shipment) && unreviewedDocuments(shipment).length === 0 && hasCompleteLineItems(shipment)
     && !needsReview && reconcileShipment(shipment).every((check) => check.ok);
 }
 
@@ -58,6 +67,8 @@ export function approvalBlockers(shipment) {
   const blockers = [];
   const missing = REQUIRED_DOCUMENTS.filter((document) => !shipment.docs.includes(document));
   if (missing.length) blockers.push(`Upload ${missing.join(', ')}.`);
+  const unreviewed = unreviewedDocuments(shipment);
+  if (unreviewed.length) blockers.push(`Review ${unreviewed.join(', ')}. Open each document and mark it reviewed after checking it against the source.`);
   for (const check of reconcileShipment(shipment)) {
     if (!check.ok) blockers.push(`${check.label}: ${check.detail}.`);
   }
