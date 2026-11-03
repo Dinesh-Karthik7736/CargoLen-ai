@@ -6,7 +6,7 @@ CargoLens is a desktop-first shipment-document review workspace for freight forw
 
 - **Demo mode:** seeded illustrative shipments, local-only edits and local file previews. It does not perform OCR or AI extraction. Do not enter Company A data.
 - **Connected mode:** Supabase email/password authentication, executive/manager roles, shipment records, private document storage, short-lived signed previews, audit events, manual-entry marking, and server-enforced submission/approval checks.
-- **AI extraction:** a Supabase Edge Function calls Gemini using a server-side secret, validates structured output, saves per-field confidence and quoted source evidence, and requires human confirmation for low-confidence fields. Use only synthetic take-home documents with the free tier; never send real customer or confidential pricing data through it.
+- **AI extraction:** a Supabase Edge Function uploads documents to LlamaCloud Extract using a server-side secret, validates the structured result, saves per-field confidence and cited source evidence, and requires human confirmation for low-confidence fields. Use only synthetic take-home documents with the free tier; never send real customer or confidential pricing data through it.
 - **Export:** the current CSV is a starter layout. The filing software's real Excel/CSV template is required before it can be called production-ready.
 
 ## Local demo
@@ -46,16 +46,16 @@ The migrations create private storage with 20 MB per-file limits and PDF/JPG/PNG
 
 ## AI extraction setup (synthetic demo only)
 
-The browser uploads a private document to Supabase Storage. The `extract-document` Edge Function verifies the signed-in executive, checks file type and size, downloads the document server-side and calls Gemini with a structured schema. It stores a confidence score and source quote per field. It does not classify HSN or calculate duty. Low-confidence values are added to the shipment's confirmation list. Run it only on the included synthetic PDFs or other data approved for the provider's free tier; free-tier documents are not appropriate for client prices, personal data, or real importer documents.
+The browser uploads a private document to Supabase Storage. The `extract-document` Edge Function verifies the signed-in executive, checks file type and size, downloads the document server-side and sends it to LlamaCloud Extract with a structured schema. It polls the asynchronous extraction job and stores LlamaCloud confidence scores and source citations per field. Missing metadata receives confidence zero, so a person must confirm it. It does not classify HSN or calculate duty. Run it only on the included synthetic PDFs or other data approved for the provider's free tier; free-tier documents are not appropriate for client prices, personal data, or real importer documents.
 
 To enable it in a Supabase demo project:
 
-1. Install the Supabase CLI and link the project, or use the project dashboard's Edge Function editor.
-2. Deploy `supabase/functions/extract-document/index.ts` as `extract-document` with JWT verification enabled.
-3. Add `GEMINI_API_KEY` as a Supabase Function secret. Optionally set `GEMINI_MODEL` and comma-separated `APP_ORIGINS` (the deployed URL plus local development URL). Never add these values to Vite variables, Git, or the browser.
-4. Confirm the exact model and free-tier terms in the Google AI Studio project before use; quotas and model availability can change. If the function is missing or the secret is unset, extraction fails closed and the document remains available for manual entry.
+1. Create a free LlamaCloud account at [cloud.llamaindex.ai](https://cloud.llamaindex.ai) and create an API key. The free tier is credit-limited; this project uses the cost-effective Extract tier. Check current quotas and usage in LlamaCloud because plan terms can change.
+2. In VS Code, open the project folder and deploy `supabase/functions/extract-document/index.ts` as `extract-document` with JWT verification enabled. With the Supabase CLI installed and linked, use `npx supabase functions deploy extract-document`. The Dashboard's Edge Function editor is also an option.
+3. In Supabase Dashboard → Edge Functions → Secrets, add `LLAMA_CLOUD_API_KEY` with the key you created. Optionally add `LLAMA_CLOUD_PROJECT_ID` if your LlamaCloud organization requires an explicit project, set `LLAMA_EXTRACT_TIER` to `cost_effective` (default), and set comma-separated `APP_ORIGINS` (the deployed URL plus local development URL). Never add these values to Vite variables, Git, or the browser. The key must not be pasted into chat or source files.
+4. Retry extraction on the synthetic sample PDFs. Free-tier credits can run out; the function reports exhausted credits clearly and the document remains available for manual entry.
 
-The implementation is a take-home demonstration, not an approved production AI route. A real client pilot needs a provider with reviewed no-training, retention, region, DPA and subprocessor terms (or a self-hosted India-region service), plus evaluation on the labeled 200-shipment set. Gemini free-tier data handling is not suitable for confidential company information.
+The implementation is a take-home demonstration, not an approved production AI route. LlamaCloud currently documents North America and Europe regions, not India, and external processing is not appropriate for real Company A customer documents or prices. A real client pilot needs a provider with reviewed no-training, retention, region, DPA and subprocessor terms (or a self-hosted India-region service), plus evaluation on the labeled 200-shipment set.
 
 ## Deployment and client-data boundary
 
