@@ -1,8 +1,18 @@
 const REQUIRED_DOCUMENTS = ['Invoice', 'Packing list', 'Bill of lading'];
 const numeric = (value) => {
-  const parsed = Number(String(value ?? '').replaceAll(',', '').replace(/[^\d.-]/g, ''));
+  const cleaned = String(value ?? '').replaceAll(',', '').replace(/[^\d.-]/g, '');
+  if (!cleaned || cleaned === '.' || cleaned === '-' || cleaned === '-.') return null;
+  const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+function hasCompleteLineItems(shipment) {
+  const items = Array.isArray(shipment.lineItems) ? shipment.lineItems : [{
+    description: shipment.product, hsn_code: shipment.hsn, quantity: shipment.qty, unit_price: shipment.unit,
+  }];
+  return items.length > 0 && items.every((item) => String(item.description || '').trim()
+    && String(item.hsn_code || '').trim() && numeric(item.quantity) !== null && numeric(item.unit_price) !== null);
+}
 
 export function reconcileShipment(shipment) {
   return [
@@ -39,7 +49,26 @@ export function hasRequiredDocuments(shipment) {
 export function canSubmitForApproval(shipment) {
   const confirmed = new Set(shipment.confirmedFields || []);
   const needsReview = (shipment.reviewRequired || []).some((field) => !confirmed.has(field));
-  return hasRequiredDocuments(shipment) && !needsReview && reconcileShipment(shipment).every((check) => check.ok);
+  return hasRequiredDocuments(shipment) && hasCompleteLineItems(shipment)
+    && !needsReview && reconcileShipment(shipment).every((check) => check.ok);
+}
+
+export function approvalBlockers(shipment) {
+  if (!shipment) return ['Open a shipment first.'];
+  const blockers = [];
+  const missing = REQUIRED_DOCUMENTS.filter((document) => !shipment.docs.includes(document));
+  if (missing.length) blockers.push(`Upload ${missing.join(', ')}.`);
+  for (const check of reconcileShipment(shipment)) {
+    if (!check.ok) blockers.push(`${check.label}: ${check.detail}.`);
+  }
+  const pending = (shipment.reviewRequired || []).filter((field) => !(shipment.confirmedFields || []).includes(field));
+  if (pending.length) blockers.push(`Confirm ${pending.length} low-confidence field${pending.length === 1 ? '' : 's'}.`);
+  const items = Array.isArray(shipment.lineItems) ? shipment.lineItems : null;
+  if (items ? !items.length : !String(shipment.product || '').trim()) blockers.push('Add at least one invoice line item.');
+  else if (!hasCompleteLineItems(shipment)) {
+    blockers.push('Complete each line item: description, HSN, quantity and unit price.');
+  }
+  return blockers;
 }
 
 export function canExportShipment(shipment) {
