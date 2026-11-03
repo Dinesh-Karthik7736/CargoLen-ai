@@ -69,6 +69,7 @@ This guide runs the synthetic take-home demo locally and deploys it on Vercel wi
 5. For a real checkout, migrations can be applied with the Supabase CLI instead of pasted into SQL Editor:
 
    ```sh
+   npx supabase init
    npx supabase login
    npx supabase link --project-ref <project-ref>
    npx supabase db push
