@@ -32,7 +32,7 @@ The sample preview is available in demo mode on shipments SHP-24811 and SHP-2481
 
 1. Create a Supabase project in the **Mumbai `ap-south-1` region**. Region selection controls the primary data location; it does not by itself establish legal compliance.
 2. In Supabase Auth, disable public sign-ups and invite staff using unique work accounts. Enable email/password auth and configure allowed redirect URLs for localhost and the deployed application.
-3. Apply `supabase/migrations/202611030001_initial.sql` to the new project.
+3. Apply `supabase/migrations/202611030001_initial.sql`, then `supabase/migrations/202611030002_document_replacement.sql` to the new project. The second migration enables executive-only removal of a mistaken upload, records its removal in the audit log, and clears invoice-derived values if an invoice is removed.
 4. Add the Supabase Project URL and **publishable/anon key** to a local `.env.local` using `.env.example` as the template. These two browser values are public identifiers; the database relies on RLS for access control.
 5. The profile trigger assigns invited accounts the executive role. Promote the designated manager in the Supabase SQL editor after verifying their user ID:
 
