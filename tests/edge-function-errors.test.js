@@ -11,7 +11,7 @@ test('explains an undeployed extraction function', async () => {
 });
 
 test('shows the safe missing-secret response from the function', async () => {
-  assert.match(await extractionErrorMessage(functionError(503, 'Add GEMINI_API_KEY to Supabase Function secrets.')), /GEMINI_API_KEY/);
+  assert.match(await extractionErrorMessage(functionError(503, 'Add LLAMA_CLOUD_API_KEY to Supabase Function secrets.')), /LLAMA_CLOUD_API_KEY/);
 });
 
 test('shows model and quota errors returned by the function', async () => {
@@ -21,3 +21,4 @@ test('shows model and quota errors returned by the function', async () => {
 test('gives a useful fallback for network failures without an HTTP response', async () => {
   assert.match(await extractionErrorMessage(new Error('Failed to fetch')), /Could not reach/i);
 });
+
