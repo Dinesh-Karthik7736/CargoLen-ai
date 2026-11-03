@@ -16,12 +16,12 @@ Open the local URL printed by Vite. The app has no runtime service dependencies 
 ## Prototype behavior
 
 - Includes seeded shipments based on the brief, including the 45 kg weight mismatch and an invoice-total mismatch.
-- Upload controls accept PDF and image files to exercise the intake flow, but do not store, render, OCR or send those files to an AI service.
+- Upload controls accept PDF and image files up to 20 MB. The selected source can be previewed locally in the browser; files are not saved on a server, OCR'd, or sent to an AI service.
 - The document pane is an explicitly labeled illustrative preview, not the uploaded source. Extraction and confidence values are seeded examples, not model results.
 - Invoice-total, gross-weight and package-count comparisons update as their comparison values are edited.
 - An executive can submit a shipment only after all three documents are present and all checks pass. A separate manager role must approve it before export is enabled.
 - CSV export is an example import layout. Confirm the customs filing software's exact column order, codes, date formats and line-item rules before integration.
-- Browser demo role switching is for walkthroughs only; it is not authentication or authorization.
+- Field edits and approval transitions are logged in browser storage. Browser demo role switching is for walkthroughs only; it is not authentication or authorization, and the local log is not tamper-proof.
 
 ## Privacy and security boundary
 
