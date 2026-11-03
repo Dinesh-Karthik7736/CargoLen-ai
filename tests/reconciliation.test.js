@@ -41,3 +41,12 @@ test('filing CSV quotes cells and escapes embedded quotes', () => {
   assert.equal(csv.split('\r\n').length, 2);
 });
 
+test('filing CSV neutralizes spreadsheet formula input', () => {
+  const csv = filingCsv({ ...complete, supplier: '=HYPERLINK("https://example.com")' });
+  assert.match(csv, /"'=HYPERLINK\(""https:\/\/example\.com""\)"/);
+});
+
+test('numeric formatting differences do not create false reconciliation errors', () => {
+  assert.equal(reconcileShipment({ ...complete, total: '7,650.00', lineSum: '7650' })[0].ok, true);
+  assert.equal(reconcileShipment({ ...complete, invoicePackages: 24, packingPackages: '24', blPackages: 24 })[2].ok, true);
+});

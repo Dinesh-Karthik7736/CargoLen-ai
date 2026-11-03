@@ -1,45 +1,69 @@
 # CargoLens
 
-CargoLens is a desktop-first prototype for reviewing import shipment documents before customs filing. It focuses on the time consuming handoff between invoice, packing list and bill of lading, with visible reconciliation and an approval gate before CSV export.
+CargoLens is a desktop-first shipment-document review workspace for freight forwarders and customs brokers. It keeps the filing system unchanged: executives review shipment data and download a CSV after manager approval.
 
-## Run locally
+## Current implementation
 
-Requirements: Node.js 20.19+ or 22.12+.
+- **Demo mode:** seeded illustrative shipments, local-only edits and local file previews. It does not perform OCR or AI extraction. Do not enter Company A data.
+- **Connected mode:** Supabase email/password authentication, executive/manager roles, shipment records, private document storage, short-lived signed previews, audit events, manual-entry marking, and server-enforced submission/approval checks.
+- **AI extraction:** intentionally disabled until an approved model and data-processing route is configured. Never send customer invoices, prices, importer contacts or documents to Gemini's free tier.
+- **Export:** the current CSV is a starter layout. The filing software's real Excel/CSV template is required before it can be called production-ready.
+
+## Local demo
+
+Requires Node.js 20.19+ or 22.12+.
 
 ```sh
 npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite. The app has no runtime service dependencies or paid API keys. Shipment edits persist in this browser's `localStorage`; uploaded file objects exist only in the current tab session.
+With no `.env.local`, the app uses clearly labeled synthetic demo data. `npm run build` builds a split, minified production bundle; `npm test` runs the reconciliation checks.
 
-## Prototype behavior
+## Supabase connected workspace
 
-- Includes seeded shipments based on the brief, including the 45 kg weight mismatch and an invoice-total mismatch.
-- Upload controls accept PDF and image files up to 20 MB. The selected source can be previewed locally in the browser; files are not saved on a server, OCR'd, or sent to an AI service.
-- The document pane is an explicitly labeled illustrative preview, not the uploaded source. Extraction and confidence values are seeded examples, not model results.
-- Invoice-total, gross-weight and package-count comparisons update as their comparison values are edited.
-- An executive can submit a shipment only after all three documents are present and all checks pass. A separate manager role must approve it before export is enabled.
-- CSV export is an example import layout. Confirm the customs filing software's exact column order, codes, date formats and line-item rules before integration.
-- Field edits and approval transitions are logged in browser storage. Browser demo role switching is for walkthroughs only; it is not authentication or authorization, and the local log is not tamper-proof.
+1. Create a Supabase project in the **Mumbai `ap-south-1` region**. Region selection controls the primary data location; it does not by itself establish legal compliance.
+2. In Supabase Auth, disable public sign-ups and invite staff using unique work accounts. Enable email/password auth and configure allowed redirect URLs for localhost and the deployed application.
+3. Apply `supabase/migrations/202611030001_initial.sql` to the new project.
+4. Add the Supabase Project URL and **publishable/anon key** to a local `.env.local` using `.env.example` as the template. These two browser values are public identifiers; the database relies on RLS for access control.
+5. The profile trigger assigns invited accounts the executive role. Promote the designated manager in the Supabase SQL editor after verifying their user ID:
 
-## Privacy and security boundary
+   ```sql
+   update public.profiles set role = 'manager' where user_id = '<verified-auth-user-uuid>';
+   ```
 
-Do not enter real client prices, importer contacts, or shipment documents in this demo. Browser storage is not encrypted, there is no authentication, and there is no server-side audit trail or retention control. No document data is sent to an external AI provider by this prototype.
+6. Set the same two Vite environment variables in Vercel for the demo deployment. Do **not** put a Supabase service-role key or AI provider key in any `VITE_` variable or browser code.
 
-The eventual client deployment needs an India-hosted API and database, private encrypted object storage, real executive/manager identities, server-enforced role checks, malware and file-type validation, rate limits, audit retention, deletion workflows, backups, monitoring, and a provider contract/configuration that prohibits training on client data. These controls must be implemented and verified before production use.
+The migration creates private storage with 20 MB per-file limits and PDF/JPG/PNG/WebP allow-listing. Storage objects are named beneath a shipment UUID, downloads require an authenticated session, and preview links expire after 60 seconds. The database blocks submission until all three document types are manually reviewed, required values and line items are filled, invoice total equals line sum, weights and package counts reconcile, and low-confidence fields are confirmed. A different manager must approve before export.
 
-## Suggested production boundary
+## AI and OCR decision
 
-Keep the browser responsible for the accessible document-review workspace. Put shipment state, role checks, reconciliation, audit events, and export generation behind an API. Store originals in private object storage with short-lived access links. Run preprocessing/OCR and extraction as a retryable background job. Keep the extractor behind an adapter so a self-hosted vision model or a contractually approved no-training provider can be selected after India residency and privacy terms are verified. Treat extracted values as untrusted until a person confirms them.
+The app does not pretend that uploaded documents have been extracted. Before enabling AI, choose one of:
 
-The six-week client plan should begin with a labeled 200-shipment evaluation set, including skewed and bilingual scans. Measure accuracy by field and supplier, and measure entry time before and after. A free tier is suitable for this local prototype, but should not be assumed to meet client data residency, backup, availability, or support requirements.
+- A self-hosted OCR/vision service in India, with hardware, operations, security and backup ownership assigned; or
+- A provider contract/tier whose no-training, retention, region, DPA and subprocessor terms have been reviewed and accepted. Keep its key server-side (for example, as a Supabase Function secret), require schema validation and source evidence, and test against the client's labeled 200-shipment set before use.
 
-## Checks
+Gemini's published pricing marks free-tier content as used to improve Google's products and paid-tier content as not used for that purpose. The Gemini free tier therefore must not receive confidential client documents. Configure an explicit no-training route before enabling extraction.
+
+## Deployment and client-data boundary
+
+Vercel Hobby is for personal, non-commercial use, and its current terms permit use of Hobby content for model training. Do not deploy this commercial client workflow or place real customer data on Hobby. A Vercel deployment can host a synthetic demo; production needs an eligible commercial plan or a different host, a verified India-region architecture, an approved provider, and client sign-off.
+
+Supabase Free is for exploration, has 1 GB storage, can pause inactive projects and does not include automatic backups. Three documents per shipment at the stated 1,100 shipments/month can exhaust that quota quickly. Treat Free as a synthetic-data pilot only, not the production storage/availability plan. Budgeted production needs retention/deletion rules, backups with recovery drills, monitoring, malware/file inspection, rate limits, and a provider review for DPDP obligations.
+
+## Before client pilot
+
+- Obtain the exact filing-software import workbook, column order, date/number formats and multi-line item rules.
+- Provide 200 de-identified or approved historical shipments with field-level labels, including skewed and bilingual scans.
+- Agree on role assignments, manager separation, retention/deletion periods, incident contacts and approved data processors.
+- Evaluate per-field and per-supplier accuracy; keep low-confidence or failed-check values blocked until human confirmation.
+- Run security, accessibility, performance, backup/restore and production smoke checks on the selected paid/approved environment.
+
+## Verification
 
 ```sh
 npm run build
+npm test
 ```
 
-Manual acceptance flow: correct the sample weight values and invoice total, submit as executive, approve as manager, then download the CSV. Try exporting before approval to confirm the action is blocked.
-
+The included tests cover invoice totals, required documents, weight/package mismatches, approval-gated export and CSV escaping. They do not replace a Supabase integration test, AI golden-set evaluation, security review or production smoke test.
