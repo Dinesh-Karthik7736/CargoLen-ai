@@ -2,6 +2,8 @@
 
 CargoLens is a desktop-first shipment-document review workspace for freight forwarders and customs brokers. It keeps the filing system unchanged: executives review shipment data and download a CSV after manager approval.
 
+Project documentation: [Technical Design Document](technical-design.docx) · [Deployment Guide](deployment.md).
+
 ## Current implementation
 
 - **Demo mode:** seeded illustrative shipments, local-only edits and local file previews. It does not perform OCR or AI extraction. Do not enter Company A data.
