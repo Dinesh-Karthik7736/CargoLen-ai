@@ -52,4 +52,43 @@ body{font-size:14px;background:var(--canvas);color:var(--ink)}.main-area{padding
 .source-column .manual-entry-note .button{white-space:nowrap}
 .field.missing-required{border-color:#d5a354;background:#fffaf1}
 .field.missing-required input::placeholder{color:#a9824c;font-size:12px}
+.settings-screen{width:min(100%,1000px);max-width:none;margin:0 auto;padding:34px 42px 54px;display:flex;flex-direction:column;gap:14px}
+.settings-title{padding:10px 0 8px}
+.settings-screen h1{margin-top:7px;color:#18344a;font:700 29px Manrope,sans-serif;letter-spacing:-.75px}
+.settings-intro{margin:8px 0 0;color:#728191;line-height:1.55}
+.settings-card{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:18px;background:#fff;border:1px solid #e2e8ec;border-radius:10px;padding:23px 25px;box-shadow:0 2px 7px rgba(20,36,50,.025)}
+.profile-card{grid-template-columns:54px minmax(0,1fr) auto;padding:23px 25px}
+.settings-avatar{width:50px;height:50px;border-radius:14px;background:#eaf1f5;color:#244d6a;display:grid;place-items:center;font:700 19px Manrope,sans-serif}
+.settings-identity{display:grid;gap:6px;min-width:0}
+.settings-identity-title{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.settings-identity-title>b{font-size:16px;color:#1d3448}
+.settings-identity>span{font-size:13px;color:#65788b;overflow-wrap:anywhere}
+.settings-identity-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:#7b8996}
+.staff-code{border:1px solid #e0e7eb;border-radius:5px;background:#f8fafb;padding:3px 7px;color:#4d6376;font-size:10px;font-weight:700;letter-spacing:.35px}
+.profile-active{display:inline-flex;align-items:center;gap:6px;color:#367353;font-size:11px;font-weight:600;white-space:nowrap}
+.profile-active i{width:7px;height:7px;border-radius:50%;background:#4b9a6d}
+.profile-account-label{display:flex;align-items:center;gap:8px;padding-left:18px;border-left:1px solid #e9edf0;color:#5c7183;font-size:11px;white-space:nowrap}
+.profile-account-label svg{color:#557893}
+.settings-permissions{grid-template-columns:40px minmax(0,1fr) auto}
+.settings-section-icon{width:38px;height:38px;border-radius:9px;background:#eef4f7;color:#315c79;display:grid;place-items:center;align-self:start}
+.settings-permissions-copy,.settings-security-copy,.settings-session-copy{min-width:0}
+.settings-card-kicker{margin-bottom:6px;color:#8795a1;font-size:9px;font-weight:700;letter-spacing:1px}
+.settings-permissions h2,.settings-security h2,.settings-signout h2{margin:0;color:#20384b;font:700 15px Manrope,sans-serif}
+.settings-permissions p,.settings-security p,.settings-signout p{margin:6px 0 0;color:#71808d;font-size:12px;line-height:1.55;max-width:620px}
+.permission-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+.permission-chips>span{display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border:1px solid #e5ebee;border-radius:6px;background:#fafbfc;color:#536a7d;font-size:10px;font-weight:600}
+.permission-chips svg{color:#4e8b68}
+.settings-role-pill{align-self:start;padding:6px 9px;border:1px solid #dae5eb;border-radius:5px;background:#f6f9fa;color:#527087;font-size:9px;font-weight:700;letter-spacing:.7px}
+.settings-security{grid-template-columns:40px minmax(0,1fr) auto}
+.settings-buttons{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.settings-buttons .button,.settings-signout>.button{min-height:38px}
+.settings-signout{grid-template-columns:40px minmax(0,1fr) auto}
+.settings-message{display:block;margin-top:9px;color:#346b4a;font-size:11px;line-height:1.5}
+.settings-note{display:flex;align-items:center;gap:8px;margin-top:3px;color:#778694;font-size:11px;line-height:1.5}
+.settings-note svg{color:#66829a;flex:0 0 auto}
+.manager-feedback-banner{display:flex;align-items:flex-start;gap:13px;margin:12px 18px 0;padding:17px 18px;border:1px solid #e7c3be;border-radius:8px;background:#fff7f5;color:#773b36}
+.manager-feedback-icon{width:32px;height:32px;border-radius:8px;background:#f9e7e4;color:#ae5148;display:grid;place-items:center;flex:0 0 auto}
+.manager-feedback-banner b{display:block;margin:1px 0 5px;font-size:13px;color:#873c36}
+.manager-feedback-banner p{font-size:14px;line-height:1.65;color:#624947;overflow-wrap:anywhere}
+@media(max-width:780px){.settings-screen{padding:24px 18px 40px}.profile-card{grid-template-columns:48px minmax(0,1fr)}.profile-account-label{grid-column:2;border-left:0;padding:0}.settings-permissions,.settings-security,.settings-signout{grid-template-columns:36px minmax(0,1fr)}.settings-role-pill,.settings-buttons,.settings-signout>.button{grid-column:2;justify-self:start}.settings-buttons{justify-content:flex-start}.manager-feedback-banner{margin:10px 12px 0;padding:13px}}
 
