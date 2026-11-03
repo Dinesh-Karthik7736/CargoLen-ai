@@ -171,3 +171,6 @@ body { color: var(--ink); background: var(--canvas); font-family: 'DM Sans', 'Se
   .work-card { border-radius: 14px; }
 }
 
+.search-feedback{margin:0 12px 9px;padding:8px 10px;border:1px solid #f0dfbf;border-radius:10px;background:#fff8ed;color:#87521d;font-size:10px;line-height:1.4}
+
+
