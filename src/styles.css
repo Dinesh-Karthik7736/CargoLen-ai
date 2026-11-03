@@ -50,4 +50,6 @@ body{font-size:14px;background:var(--canvas);color:var(--ink)}.main-area{padding
 .source-column .manual-entry-note{position:sticky;bottom:8px;z-index:5;flex:0 0 auto;margin-top:10px;box-shadow:0 4px 18px rgba(21,38,52,.12)}
 .source-column .manual-entry-note>span{line-height:1.45}
 .source-column .manual-entry-note .button{white-space:nowrap}
+.field.missing-required{border-color:#d5a354;background:#fffaf1}
+.field.missing-required input::placeholder{color:#a9824c;font-size:12px}
 
