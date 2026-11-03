@@ -114,16 +114,31 @@ Deno.serve(async (request) => {
       ? { type: 'document', data: base64, mime_type: document.mime_type }
       : { type: 'image', data: base64, mime_type: document.mime_type };
     const prompt = `Read this import shipment ${document.document_type.replaceAll('_',' ')}. It may be skewed or multilingual. Extract only values visibly present in this document. Do not infer, classify, calculate duty, or invent an HSN code. If HSN is absent, return null with confidence 0. For each value return a confidence from 0 to 1 and a short exact source quote; if uncertain or absent use null and an empty quote. For quantities, prices, weights and totals, return numbers only and preserve the printed unit/currency separately. Return the document_type as ${document.document_type}.`;
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
-      method: 'POST',
-      headers: { 'x-goog-api-key': geminiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: Deno.env.get('GEMINI_MODEL') || 'gemini-3.8-flash',
-        input: [documentContent, { type: 'text', text: prompt }],
-        response_format: { type: 'text', mime_type: 'application/json', schema },
-      }),
+    const requestBody = JSON.stringify({
+      model: Deno.env.get('GEMINI_MODEL') || 'gemini-3.8-flash',
+      input: [documentContent, { type: 'text', text: prompt }],
+      response_format: { type: 'text', mime_type: 'application/json', schema },
     });
-    if (!response.ok) throw new Error(`AI provider returned ${response.status}. Check the model key, quota and model availability.`);
+    let response: Response | null = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+        method: 'POST',
+        headers: { 'x-goog-api-key': geminiKey, 'Content-Type': 'application/json' },
+        body: requestBody,
+      });
+      const transient = [408, 429, 500, 502, 503, 504].includes(response.status);
+      if (!transient || attempt === 2) break;
+      const delayMs = 800 * (2 ** attempt) + Math.floor(Math.random() * 300);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    if (!response) throw new Error('Gemini returned no HTTP response. Retry extraction in a moment.');
+    if (!response.ok) {
+      const status = response.status;
+      if (status === 503) throw new Error('Gemini is temporarily overloaded (HTTP 503). Wait briefly, then retry extraction.');
+      if (status === 429) throw new Error('Gemini rate limit reached (HTTP 429). Wait for the limit to reset, then retry.');
+      if (status === 401 || status === 403) throw new Error(`Gemini rejected the API key or project access (HTTP ${status}). Check the key and AI Studio project.`);
+      throw new Error(`Gemini rejected the extraction request (HTTP ${status}). Check the function logs for details.`);
+    }
     const modelResponse = await response.json();
     const text = modelResponse.output_text || modelResponse.output?.find((part: { type?: string }) => part.type === 'text')?.text;
     if (typeof text !== 'string') throw new Error('AI provider returned no structured document data.');
