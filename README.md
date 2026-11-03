@@ -32,7 +32,7 @@ The sample preview is available in demo mode on shipments SHP-24811 and SHP-2481
 
 1. Create a Supabase project in the **Mumbai `ap-south-1` region**. Region selection controls the primary data location; it does not by itself establish legal compliance.
 2. In Supabase Auth, disable public sign-ups and invite staff using unique work accounts. Enable email/password auth and configure allowed redirect URLs for localhost and the deployed application.
-3. Apply `supabase/migrations/202611030001_initial.sql`, then `supabase/migrations/202611030002_document_replacement.sql` to the new project. The second migration enables executive-only removal of a mistaken upload, records its removal in the audit log, and clears invoice-derived values if an invoice is removed.
+3. Apply migrations `202611030001_initial.sql`, `202611030002_document_replacement.sql`, and `202611030003_manager_approval_workflow.sql` in order to the new project. The second migration enables executive-only removal of a mistaken upload. The third assigns stable `EXE-#####` / `MGR-#####` staff codes, scopes executive shipment access to the executive's own records, and creates a separate approval-event history for submissions, manager approvals, rejections and returns.
 4. Add the Supabase Project URL and **publishable/anon key** to a local `.env.local` using `.env.example` as the template. These two browser values are public identifiers; the database relies on RLS for access control.
 5. The profile trigger assigns invited accounts the executive role. Promote the designated manager in the Supabase SQL editor after verifying their user ID:
 
@@ -42,7 +42,7 @@ The sample preview is available in demo mode on shipments SHP-24811 and SHP-2481
 
 6. Set the same two Vite environment variables in Vercel for the demo deployment. Do **not** put a Supabase service-role key or AI provider key in any `VITE_` variable or browser code.
 
-The migration creates private storage with 20 MB per-file limits and PDF/JPG/PNG/WebP allow-listing. Storage objects are named beneath a shipment UUID, downloads require an authenticated session, and preview links expire after 60 seconds. The database blocks submission until all three document types are manually reviewed, required values and line items are filled, invoice total equals line sum, weights and package counts reconcile, and low-confidence fields are confirmed. A different manager must approve before export.
+The migrations create private storage with 20 MB per-file limits and PDF/JPG/PNG/WebP allow-listing. Storage objects are named beneath a shipment UUID, downloads require an authenticated session, and preview links expire after 60 seconds. The database blocks submission until all three document types are reviewed, required values and line items are filled, invoice total equals line sum, weights and package counts reconcile, and low-confidence fields are confirmed. The manager queue contains only submitted and approved records and identifies the submitting executive by name and staff code. Manager decisions are stored in `shipment_approval_events`; rejection and return require a reason and send the executive's shipment back to the recheck queue. A different manager must approve before export.
 
 ## AI extraction setup (synthetic demo only)
 
@@ -79,3 +79,4 @@ npm test
 ```
 
 The included tests cover invoice totals, required documents, weight/package mismatches, approval-gated export and CSV escaping. They do not replace a Supabase integration test, AI golden-set evaluation, security review or production smoke test.
+
