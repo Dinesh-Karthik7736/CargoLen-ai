@@ -14,6 +14,17 @@ function hasCompleteLineItems(shipment) {
     && String(item.hsn_code || '').trim() && numeric(item.quantity) !== null && numeric(item.unit_price) !== null);
 }
 
+function missingRequiredDetails(shipment) {
+  const values = [
+    ['Supplier', shipment.supplier, 'Supplier not entered'],
+    ['Invoice number', shipment.invoice, '—'],
+    ['Currency', shipment.currency, '—'],
+    ['Incoterm', shipment.incoterm, '—'],
+  ];
+  return values.filter(([, value, placeholder]) => !String(value ?? '').trim() || value === placeholder)
+    .map(([label]) => label);
+}
+
 export function reconcileShipment(shipment) {
   return [
     {
@@ -59,7 +70,7 @@ export function canSubmitForApproval(shipment) {
   const confirmed = new Set(shipment.confirmedFields || []);
   const needsReview = (shipment.reviewRequired || []).some((field) => !confirmed.has(field));
   return hasRequiredDocuments(shipment) && unreviewedDocuments(shipment).length === 0 && hasCompleteLineItems(shipment)
-    && !needsReview && reconcileShipment(shipment).every((check) => check.ok);
+    && !missingRequiredDetails(shipment).length && !needsReview && reconcileShipment(shipment).every((check) => check.ok);
 }
 
 export function approvalBlockers(shipment) {
@@ -69,6 +80,8 @@ export function approvalBlockers(shipment) {
   if (missing.length) blockers.push(`Upload ${missing.join(', ')}.`);
   const unreviewed = unreviewedDocuments(shipment);
   if (unreviewed.length) blockers.push(`Review ${unreviewed.join(', ')}. Open each document and mark it reviewed after checking it against the source.`);
+  const missingDetails = missingRequiredDetails(shipment);
+  if (missingDetails.length) blockers.push(`Enter ${missingDetails.join(', ')} from the invoice before submitting.`);
   for (const check of reconcileShipment(shipment)) {
     if (!check.ok) blockers.push(`${check.label}: ${check.detail}.`);
   }
@@ -100,3 +113,4 @@ export function filingCsv(shipment) {
     item.description, item.hsn_code, item.quantity, item.unit_price, shipment.packages, shipment.gross, shipment.net, shipment.container]);
   return [headers, ...rows].map((row) => row.map(cell).join(',')).join('\r\n');
 }
+
