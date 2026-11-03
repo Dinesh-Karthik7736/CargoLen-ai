@@ -92,7 +92,7 @@ npm audit --omit=dev
 | API response caching | Shipment, approval, profile, document and audit data stay uncached in the browser/CDN. They are private and change during review. |
 | Expensive query caching | No expensive dashboard aggregation currently exists; avoid adding a cache until a measured query needs it and an invalidation rule is defined. |
 | CDN / server-side caching | Vercel serves static deployment assets. Hashed `/assets/*` files are immutable for one year; synthetic `/samples/*` PDFs cache for one day; `index.html` is never stored. Verify response headers on the deployed URL. Vercel owns network distribution; the app does not implement a custom CDN. |
-| Compression | The Vite build reports gzip sizes. Vercel's delivery network handles response compression when supported by the client. Source shipment documents remain byte-for-byte intact for review evidence. |
+| Compression | The Vite build reports gzip sizes; Vercel handles compression for app assets when supported by the client. The browser calls Supabase directly, so API payload compression is provider-managed and was not verified here. Source shipment documents remain byte-for-byte intact for review evidence. |
 | Load balancer | Vercel's hosting platform handles request distribution. No app-managed load balancer is configured or load-test result claimed. |
 | Database indexes | Migrations index shipment status/date, supplier, owner/status/date, line items, documents, audit history and approval history. `shipment_no` is uniquely constrained for exact approved-shipment lookup. |
 | N+1 queries | Manager list profile lookup batches user IDs with one `in(...)` request per page. The exact approved-shipment lookup fetches one owner's profile after the single shipment result. |
