@@ -19,7 +19,9 @@ export const isSupabaseConfigured = !supabaseConfigError;
 export const supabase = isSupabaseConfigured
   ? createClient(url, anonKey, {
       auth: {
-        persistSession: true,
+        // Take-home demo policy: each fresh page load requires a new sign-in.
+        // Auth remains in memory for the current tab only.
+        persistSession: false,
         autoRefreshToken: true,
         detectSessionInUrl: true,
       },

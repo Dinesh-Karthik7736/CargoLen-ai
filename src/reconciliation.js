@@ -37,7 +37,9 @@ export function hasRequiredDocuments(shipment) {
 }
 
 export function canSubmitForApproval(shipment) {
-  return hasRequiredDocuments(shipment) && reconcileShipment(shipment).every((check) => check.ok);
+  const confirmed = new Set(shipment.confirmedFields || []);
+  const needsReview = (shipment.reviewRequired || []).some((field) => !confirmed.has(field));
+  return hasRequiredDocuments(shipment) && !needsReview && reconcileShipment(shipment).every((check) => check.ok);
 }
 
 export function canExportShipment(shipment) {
@@ -58,4 +60,3 @@ export function filingCsv(shipment) {
     item.description, item.hsn_code, item.quantity, item.unit_price, shipment.packages, shipment.gross, shipment.net, shipment.container]);
   return [headers, ...rows].map((row) => row.map(cell).join(',')).join('\r\n');
 }
-

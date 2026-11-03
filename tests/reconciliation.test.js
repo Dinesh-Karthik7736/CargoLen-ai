@@ -60,4 +60,3 @@ test('filing CSV includes each shipment line item', () => {
   assert.match(csv, /"Valve body"/);
   assert.match(csv, /"Seal kit"/);
 });
-

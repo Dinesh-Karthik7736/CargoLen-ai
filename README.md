@@ -6,7 +6,7 @@ CargoLens is a desktop-first shipment-document review workspace for freight forw
 
 - **Demo mode:** seeded illustrative shipments, local-only edits and local file previews. It does not perform OCR or AI extraction. Do not enter Company A data.
 - **Connected mode:** Supabase email/password authentication, executive/manager roles, shipment records, private document storage, short-lived signed previews, audit events, manual-entry marking, and server-enforced submission/approval checks.
-- **AI extraction:** intentionally disabled until an approved model and data-processing route is configured. Never send customer invoices, prices, importer contacts or documents to Gemini's free tier.
+- **AI extraction:** a Supabase Edge Function calls Gemini using a server-side secret, validates structured output, saves per-field confidence and quoted source evidence, and requires human confirmation for low-confidence fields. Use only synthetic take-home documents with the free tier; never send real customer or confidential pricing data through it.
 - **Export:** the current CSV is a starter layout. The filing software's real Excel/CSV template is required before it can be called production-ready.
 
 ## Local demo
@@ -36,14 +36,18 @@ With no `.env.local`, the app uses clearly labeled synthetic demo data. `npm run
 
 The migration creates private storage with 20 MB per-file limits and PDF/JPG/PNG/WebP allow-listing. Storage objects are named beneath a shipment UUID, downloads require an authenticated session, and preview links expire after 60 seconds. The database blocks submission until all three document types are manually reviewed, required values and line items are filled, invoice total equals line sum, weights and package counts reconcile, and low-confidence fields are confirmed. A different manager must approve before export.
 
-## AI and OCR decision
+## AI extraction setup (synthetic demo only)
 
-The app does not pretend that uploaded documents have been extracted. Before enabling AI, choose one of:
+The browser uploads a private document to Supabase Storage. The `extract-document` Edge Function verifies the signed-in executive, checks file type and size, downloads the document server-side and calls Gemini with a structured schema. It stores a confidence score and source quote per field. It does not classify HSN or calculate duty. Low-confidence values are added to the shipment's confirmation list. Run it only on the included synthetic PDFs or other data approved for the provider's free tier; free-tier documents are not appropriate for client prices, personal data, or real importer documents.
 
-- A self-hosted OCR/vision service in India, with hardware, operations, security and backup ownership assigned; or
-- A provider contract/tier whose no-training, retention, region, DPA and subprocessor terms have been reviewed and accepted. Keep its key server-side (for example, as a Supabase Function secret), require schema validation and source evidence, and test against the client's labeled 200-shipment set before use.
+To enable it in a Supabase demo project:
 
-Gemini's published pricing marks free-tier content as used to improve Google's products and paid-tier content as not used for that purpose. The Gemini free tier therefore must not receive confidential client documents. Configure an explicit no-training route before enabling extraction.
+1. Install the Supabase CLI and link the project, or use the project dashboard's Edge Function editor.
+2. Deploy `supabase/functions/extract-document/index.ts` as `extract-document` with JWT verification enabled.
+3. Add `GEMINI_API_KEY` as a Supabase Function secret. Optionally set `GEMINI_MODEL` and comma-separated `APP_ORIGINS` (the deployed URL plus local development URL). Never add these values to Vite variables, Git, or the browser.
+4. Confirm the exact model and free-tier terms in the Google AI Studio project before use; quotas and model availability can change. If the function is missing or the secret is unset, extraction fails closed and the document remains available for manual entry.
+
+The implementation is a take-home demonstration, not an approved production AI route. A real client pilot needs a provider with reviewed no-training, retention, region, DPA and subprocessor terms (or a self-hosted India-region service), plus evaluation on the labeled 200-shipment set. Gemini free-tier data handling is not suitable for confidential company information.
 
 ## Deployment and client-data boundary
 
